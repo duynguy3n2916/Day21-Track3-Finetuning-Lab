@@ -19,6 +19,16 @@
 
 **Template có giữ khối `<think>` không?** Có — theo kết quả trong `results/template_check.json`, template kiểm tra trả về trạng thái `ok: true`, các thẻ suy luận được bảo toàn nguyên vẹn với kết luận: `"reasoning preserved — safe to train on traces"`. Tuy nhiên, vì tập dữ liệu CSKH hiện tại là định dạng bare JSON không chứa chuỗi suy luận dài, các thẻ `<think></think>` rỗng đóng mở ngay trong prompt sinh nên không làm ảnh hưởng đến hàm mục tiêu huấn luyện.
 
+### Lý do lựa chọn Model và Dataset:
+* **Lý do chọn Base Model (`unsloth/Qwen3.5-4B`):**
+  1. *Khả năng xử lý tiếng Việt vượt trội:* Dòng mô hình Qwen3.5 là một trong những kiến trúc mã nguồn mở thế hệ mới (2026) được pre-train trên kho ngữ liệu đa ngôn ngữ khổng lồ, đặc biệt có năng lực ngữ nghĩa tiếng Việt và tuân thủ chỉ dẫn định dạng rất cao.
+  2. *Điểm ngọt về tài nguyên phần cứng (Hardware Sweet Spot):* Kích thước 4B tham số hoàn toàn vừa vặn trong ngưỡng an toàn của GPU Tesla T4 16GB (Google Colab Free, thực tế khả dụng 14.6 GB). Khi huấn luyện ở định dạng 16-bit LoRA (fp16), mô hình chỉ chiếm đỉnh 8.78 GB VRAM. Điều này cho phép thực hiện LoRA 16-bit nguyên bản mà không bắt buộc phải đánh đổi sai số lượng tử hóa 4-bit (QLoRA) theo đúng khuyến nghị của nhà phát triển.
+  3. *Tương thích kiến trúc:* Phiên bản tối ưu từ Unsloth tương thích chuẩn xác với stack PEFT/TRL, hỗ trợ đầy đủ các module chiếu tuyến tính (text-linear) phục vụ cho thí nghiệm LoRA "vùng không hối tiếc".
+* **Lý do chọn Dataset (250 ticket CSKH tiếng Việt → JSON triage 4 trường):**
+  1. *Đánh giá khách quan, loại bỏ điểm thiên vị:* Toàn bộ 4 trường thông tin (`intent`, `urgency`, `product`, `sentiment`) đều có nhãn chuẩn xác khách quan. Việc chấm điểm được thực hiện hoàn toàn bằng luật cứng (string matching, schema validation) thay vì dùng LLM-judge, đảm bảo số liệu đo đạc có độ tin cậy tuyệt đối và không có "điểm cho không".
+  2. *Thách thức tuân thủ cấu trúc (Schema Compliance):* Bài toán đòi hỏi mô hình vừa phải phân loại intent/urgency/sentiment theo các tập nhãn rời rạc, vừa phải trích xuất nguyên văn tên sản phẩm (`product`) và bọc toàn bộ trong một object JSON duy nhất, là bài kiểm tra hoàn hảo cho năng lực thích ứng cấu trúc của LoRA.
+  3. *Môi trường lý tưởng để đo lường Thảm họa quên (Catastrophic Forgetting):* Kích thước tập dữ liệu vừa phải (250 mẫu) trong một miền nghiệp vụ chuyên biệt hẹp tạo điều kiện thực nghiệm hoàn hảo để kiểm chứng cổng hồi quy (Regression Gate): xem việc ép mô hình chuyên môn hóa có làm hỏng năng lực tri thức tổng quát hay không.
+
 ---
 
 ## 2. Mask proof (NB1)
